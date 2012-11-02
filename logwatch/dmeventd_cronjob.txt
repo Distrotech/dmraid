@@ -1,0 +1,2 @@
+# |DMEVENTD| This will run logwatch checking for dmeventd events every minute.
+# * * * * * /usr/sbin/logwatch --service dmeventd --range today --detail med

@@ -1,0 +1,69 @@
+.TH "DMEVENT_TOOL" "8" "1.0.0.rc3" "Brian Wood" "\""
+.SH "NAME"
+\fBdmevent_tool\fR \- A utility used to load a DSO into dmeventd and (un)register devices with it for monitoring
+.SH "SYNOPSIS"
+dmevent_tool \-[Vhmru] {RAID device name} {DSO Name}
+ 
+.SH "DESCRIPTION"
+dmevent_tool is a userspace utility used to register/unregister DSOs
+with the daemon dmeventd. 
+
+If used with the \fB\-m\fR command line parameter users can display all of the
+actively dmeventd monitored devices.
+
+
+.SH "OPTIONS"
+.TP 
+\-V      Show version of dmevent_tool
+
+.LP
+\-{h/?}  Show this help information
+
+.LP
+\-m[r|u] List all currently active device mapper devices
+        and their current status with dmeventd
+        for registered (-r)/unregistered (-m) devices
+            Syntax: dmevent_tool -m[u|r]
+
+.LP
+\-a[r|u] Same as -m, but for devices with UUID only!
+            Syntax: dmevent_tool -a[u|r]
+
+.LP
+\-r      Register a device with dmeventd
+            Syntax: dmevent_tool -r <device name> <path to DSO library>
+            Example: dmevent_tool -r isw_abcdeh_Volume0 libdmraid-events.so
+
+.LP 
+\-u      Unregister a device with dmeventd
+            Syntax: dmevent_tool -u <device name> [<path to DSO library>]
+            Example: dmevent_tool -u isw_abcdefgh_Volume0
+
+.SH "EXAMPLES"
+\fBdmevent_tool \-m\fR is used to display all of the actively monitored devices
+.br 
+    dmevent_tool \-m
+    Device Name: isw_defeaigdde_Volume0_dmraid00
+        Registered DSO:                   libdmraid\-events.so
+        UUID:                             isw_defeaigdde_Volume0_dmraid00
+        status:                           Active
+        major device #:                   253
+        minor device #:                   0
+        read only device:                 No
+        number of recorded kernel events: 0
+        SATA drives in this volume group: /dev/sdb /dev/sdc	
+
+\fBdmevent_tool \-r\fR is used to register a volume group device with dmeventd
+.br  
+    dmevent_tool \-r isw_defeaigdde_Volume0_dmraid00 libdmraid\-events.so
+
+
+\fBdmevent_tool \-u\fR is used to unregister a volume group from dmeventd
+.br 
+    dmevent_tool \-u isw_defeaigdde_Volume0_dmraid00
+
+.SH "DIAGNOSTICS"
+dmevent_tool returns an exit code of 0 for success or 1 for error.
+
+.SH "AUTHOR"
+Brian Wood <brian.j.wood@intel.com>

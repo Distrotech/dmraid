@@ -1,0 +1,301 @@
+
+dmraid tool design document v1.0.0-rc5f		Heinz Mauelshagen 2004.11.05
+----------------------------------------------------------------------------
+
+The dmraid tool supports RAID devices (RDs) such as ATARAID with
+device-mapper (dm) in Linux 2.6 avoiding the need to install a
+vendor specific (binary) driver to access them.
+
+It supports multiple on-disk RAID metadata formats and is open for
+extension with new ones.
+
+dmraid supports activation of RDs and *updates* of the ondisk metadata
+(eg, to record disk failures) for the Intel Software RAID (IMSM) format.
+Others may follow.
+
+It can optionally erase on disk metadata in case of multiple format
+signatures on a device.
+
+See future enhancements at the end.
+
+
+Functional requirements:
+------------------------
+
+1. dmraid must be able to read multiple vendor specific ondisk
+   RAID metadata formats:
+
+   o ATARAID
+     - Adaptec HostRAID ASR
+     - Highpoint 37x/45x
+     - Intel Software RAID
+     - JMicron ATARAI
+     - LSI Logic MegaRaid
+     - NVidia RAID
+     - Promise FastTrak
+     - Silicon Image Medley
+     - SNIA DDF1
+     - VIA Software RAID
+     - DOS partitions on SW RAIDs
+
+
+2. dmraid shall be open to future extensions by other ondisk RAID formats.
+
+3. dmraid shall generate the necessary dm table(s) defining
+   the needed mappings to address the RAID data.
+
+4. Device discovery, activation, deactivation and
+   property display shall be supported.
+
+5. Spanning of disks, RAID0, RAID1 and RAID10 shall be supported
+   (in order to be able to support SNIA DDF, higher raid levels need
+    implementing in form of respective dm targets; eg, RAID5);
+   Some vendors do have support for RAID5 already which is outside the scope
+   of dmraid because of the lag of a RAID5 target in device-mapper!
+
+6. Activation of MSDOS partitions in RAID sets shall be supported.
+
+
+Feature set definition:
+-----------------------
+
+Feature set summarizes as: Discover, Activate, Deactivate, Display.
+
+
+o Discover (1-n RD)
+
+  1 scan active disk devices identifying RD.
+
+  2 try to find an RD signature and if recognized,
+    add the device to the list of RDs found.
+
+  3 Abstract the metadata describing the RD layout and translate the vendor
+    specific format into it.
+
+
+o Activate (1-n RD)
+
+  1 group devices into abstracted RAID sets (RS) conforming to
+    their respective layout (SPAN, RAID0, RAID1, RAID10).
+  
+  2 generate dm mapping tables for a/those RS(s) derived from the abstracted
+    information about RS(s) and RD(s).
+  
+  3 create multiple/a dm device(s) for each RS to activate and 
+    load the generated table(s) into the device.
+
+  4 Recusively discover and activate MSDOS partitions in active RAID sets.
+
+
+o Deactivate (1-n RD)
+
+  1 remove the dm device(s) making up an RS; can be a stacked hierachy of
+    devices (eg, RAID10: RAID1 on top of n RAID0 devices).
+
+
+o Display (1-n RD)
+
+  1 display RS and RD properties
+    (eg, display information kept with RS(s) such as size and type)
+
+
+
+Technical specification:
+------------------------
+
+All functions returning int or a pointer return 0/NULL on failure.
+
+o RAID metadata format handler
+
+  Tool calls the following function to register a vendor specific
+  format handler; in case of success, a new instance with methods is
+  accessible to the high level metadata handling functions (see below):
+
+  - int register_format_handler(struct lib_context *lc,
+				struct dmraid_format *fmt);
+
+    x returns !0 on successfull format handler registration
+
+  - Format handler methods:
+
+    x struct raid_dev *(read)(struct lib_context *lc, struct dev_info* di);
+
+      - returns 'struct raid_dev *' describing the RD (eg, offset, length)
+
+    x int (*write)(struct lib_context *lc, struct raid_dev* rd, int erase);
+
+      - returns != 0 successfully written the vendor specific metadata
+        back to the respective RD rd (optionally erasing the
+	metadata area(s) in case erase != 0)
+
+    x struct raid_set (*group)(struct lib_context *lc,
+				 struct raid_dev *raid_dev)
+
+      - returns pointer to RAID set structure on success
+
+    x int (*check)(struct lib_context *lc, struct raid_set *raid_set)
+
+      - returns != 0 in case raid set is consistent
+
+    x void (*log)(struct lib_context *lc, struct raid_dev *rd)
+
+      - display metadata in native format (ie. all vendor specific
+	metadata fields) for RD rd
+
+
+o Discover
+
+  1 retrieve block device information from sysfs for all disk
+    devices by scanning /SYSFS_MOUNTPOINT/block/[sh]d*;
+    keep information about the device path and size which is the base
+    to find the RAID signature on the device in a linked list
+    of type 'struct dev_info *'.
+
+  2 walk the list and try to read RD metadata signature off the device
+    trying vendor specific read methods (eg, Highpoint...) in turn;
+    library exposes interface to register format handlers for vendor
+    specific RAID formats in order to be open for future extensions
+    (see register_format_handler() above).
+
+    Tool calls the following high level function which hides
+    the iteration through all the registered format handler methods:
+
+    x void discover_devices(struct lib_context *lc)
+
+      - returns != 0 in case it discovered all supported disks (IDE, SCSI)
+	and added them to a list
+
+    x void discover_raid_devices(struct lib_context *lc,
+				 char **fmt_names,
+				 char **devices);
+
+      - discovers all suported RDs using the list filled by
+ 	discover_devices() and adds them to a list
+
+    x void discover_partitions(struct lib_context *lc);
+
+      - discovers all MSDOS partitions in active RAID sets and builds
+	RAID sets with one linear device hanging off for activation.
+
+    x int count_devices(struct lib_context *lc, enum dev_type type);
+
+      - returns number of devices found by discover_devices() and
+	discover_raid_devices() of specified type (eg, DEVICE, RAID, ...)
+
+    x int perform(struct lib_context *lc, char **argv);
+
+      - returns != 0 on success performing various actions
+	(ie. activation/deacivation of RAID sets, displaying properties, ...)
+
+o Activate 1
+
+    Tool calls the following high level function which hide
+    the details of the RAID set assembly:
+
+    x int group_set(struct lib_context *lc, char *name);
+
+      - returns != 0 on successfully grouping an RS/RSs
+
+o Activate 2+3
+
+  - don't activate non-RAID1 devices which have an invalid set check result
+    and display an error
+  - create the ASCII dm mapping table by iterating through the list
+    of RD in a particular set, retrieving the layout (SPAN, ...)
+    the device path, the offset into the device and the length to map
+    and the stripe size in case of RAID
+  - create a unique device_name
+  - call device-mapper library to create the mapped device and load
+    the mapping table using this function:
+
+    x int activate_set(struct lib_context *lc, void *rs)
+
+      - returns != 0 in case of successfull RAID set activation
+
+o Activate 4
+  - activate MSDOS partitioned RAID sets as in 2+3
+
+
+o Deactivate
+
+  - check if a partitioned RAID set is active and deactivate it first
+
+  - check if the RAID set is active and call device-mapper library to
+    remove the mapped device (recursively in case of a mapped-device hierarchy)
+    using this function:
+
+    x int deactivate_set(struct lib_context *lc, void *rs)
+
+      - returns != 0 in case of successfull RAID set deactivation
+
+
+o Display
+
+  - list all block devices found
+  - list all (in)active RD
+  - display properties of a particular/all RD devices
+    (eg, members of the set by block device name and offset/length mapped
+     to those...)
+
+    x void display_devices(struct lib_context *lc, enum dev_type type);
+
+      - display devices of dev_type 'type' (eg, RAID, DEVICE, ...)
+
+    x void display_set(struct lib_context *lc, void *rs,
+		       enum active_type type, int top);
+
+      - display RS of active_type 'type' (ACTIVE, INACTIVE, ALL)
+
+
+Code directory tree:
+--------------------
+
+.
+|-- autoconf
+|-- doc
+|-- include
+|   `-- dmraid
+|-- lib
+|   |-- activate
+|   |-- datastruct
+|   |-- device
+|   |-- display
+|   |-- events
+|   |-- format
+|   |   |-- ataraid
+|   |   |-- ddf
+|   |   |-- partition
+|   |   `-- template
+|   |-- locking
+|   |-- log
+|   |-- metadata
+|   |-- misc
+|   |-- mm
+|   `-- register
+|-- logwatch
+|-- man
+`-- tools
+
+24 directories
+
+
+Enhancements coming (initially with the Intel Software RAID):
+-------------------------------------------------------------
+
+o enhance write support to update ondisk metadata
+  - to restore metadata backups
+  - to record disk failures
+
+o support to log state (eg, sector failures) in standard/vendor ondisk logs;
+  needs above write support
+
+o status daemon to monitor RAID set sanity
+  (eg, disk failure, hot spare rebuild, ...) and
+  frontend with CLI
+
+
+Open questions:
+---------------
+
+o we need to prioritize on device-mapper targets for higher RAID levels
+  (in particular we'ld need RAID4+5 to support some ATARAID formats)

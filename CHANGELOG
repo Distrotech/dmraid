@@ -1,0 +1,531 @@
+
+Changelog from dmraid 1.0.0.rc12 to 1.0.0.rc13		2006.10.11
+
+
+FIXES:
+------
+o pdc.c: magic number check
+o metadata.c: rd_type() returned wrong unified_type for asr
+
+
+
+Changelog from dmraid 1.0.0.rc11 to 1.0.0.rc12		2006.09.22
+
+
+FIXES:
+------
+o sil.c: quorate() OBO fix
+o activate.c: handler() OBO fix
+o added log_zero_sectors() to various metadata format handlers
+
+FEATURES:
+---------
+o added SNIA DDF1 support (IBM)
+o added reload functionality to devmapper.c (IBM)
+o sil.[ch]: added JBOD support
+
+
+MISCELANIOUS:
+-------------
+o streamlined devmapper.c
+
+
+
+
+Changelog from dmraid 1.0.0.rc10 to 1.0.0.rc11		2006.05.16
+
+FIXES:
+------
+o jm.c:	checksum() calculation
+
+o misc.c:
+	support "%d" in p_fmt and fix segfault with wrong format identifier
+
+o nv.c:	size fix in setup_rd()
+
+o activate.c:
+	- striped devices could end on non-chunk boundaries
+	- calc_region_size() calculated too small sizes causing large
+	  dirty logs in memory
+
+o isw.c: set raid5 type to left asymmetric
+
+o toollib.c: fixed 'No RAID...' message
+
+
+FEATURES:
+---------
+
+o support selection of RAID5 allocation algorithm in metadata format handlers
+
+
+MISCELANIOUS:
+-------------
+
+
+
+Changelog from dmraid 1.0.0.rc9 to 1.0.0.rc10		2006.02.17
+
+FIXES:
+------
+o metadata.c: want_set() didn't drop sets properly
+              (eg, jmicron_raid10 wanted and jmicron_raid1 not dropped)
+
+o scsi.c: avoid retrieving too much data (Al Viro)
+
+o sil.h: magic number fix (some arrays were not recognized)
+
+
+FEATURES:
+---------
+o added libdmraid_make_table() to activate.c to be used by installer
+
+o asr.[ch]: added Adaptec HostRAID support
+
+o jm.[ch]: added JMicron JMB36x support
+
+o added '--enable-libselinux' to configure for those who want
+  to build without it
+
+o bytorder.h: enhanced to support big endian conversion
+              on little endian arch
+
+o nv.c: support RAID5 with dm-raid45 target
+
+o pdc.h: support additional metadata offset
+
+o metadata.c: enhanced to support RAID4 and RAID5 mappings with dm-raid45 target
+
+
+MISCELANIOUS:
+-------------
+o misc.c: streamlined remove_white_space() (Al Viro)
+
+
+
+Changelog from dmraid 1.0.0.rc8 to 1.0.0.rc9		2005.09.23
+
+FIXES:
+------
+o via.c: checksum() calculation;
+	 stride size
+
+o toollib.c:  memory leak in _valid_format()
+
+o isw.c: avoid endianess conversion bug in to_cpu();
+         disk status check;
+	 version check to cover 1.2.02;
+	 isw_write() to store metadata in correct sequence
+
+o hpt37x.c, lsi.c, nv.c, pdc.c, sil.c via.c: streamlined grouping switch()
+
+o hpt45x.c: added missing RAID10 to capability string
+
+o sil.c: streamlined quorate()
+
+o misc.c: p_fmt() missed a free_string()
+
+
+FEATURES:
+---------
+o pdc.c: support RAID10
+
+o commands.c: added --separator option for selectable string
+	      separator character (used with --format etc.)
+
+o display.c: support customizable column output through field
+	     identifiers with -c option
+
+MISCELANIOUS:
+------------
+o metadata.c: use log_alloc_err()
+
+o format.h: introduced caps (RAID capabilities) member
+
+o format.c: introduced get_format_caps() and free_format_caps()
+	    to ease library use in installers (pjones@redhat.com)
+
+o display.c: streamlined log_devices()
+
+o toollib.c: stremalined collapse_delimiters()
+
+o isw.c: streamlined isw_read_extended() and setup_rd()
+
+o file.c: cleanup
+
+o add /var/lock/dmraid to rpm
+
+o avoid global variable format_names:
+  - change discover_raid_devices() interface
+  - saves code in toollib
+
+o added more info to format_error output
+
+o activate.c: display RAID string with unsupported mapping
+
+
+
+Changelog from dmraid 1.0.0.rc7 to 1.0.0.rc8		2005.05.19
+
+FIXES:
+------
+o nv.c: fixed stripe size
+
+o sil.c: avoid incarnation_no in name creation, because the Windows
+         driver changes it every time
+
+
+FEATURES:
+---------
+o added --ignorelocking option to avoid taking out locks in early boot
+  where no read/write access to /var is given
+
+
+MISCELANIOUS:
+------------
+o some cleanups in misc.c
+
+
+
+Changelog from dmraid 1.0.0.rc6 to 1.0.0.rc7		2005.04.07
+
+FIXES:
+------
+o pdc.c, hpt37x.c, hpt45x.c: fixed size in sectors() for RAID1
+
+
+MISCELANIOUS:
+------------
+
+o sil_valid() displays the area number where the checksum is invalid now.
+
+
+
+
+Changelog from dmraid 1.0.0-rc5f to 1.0.0.rc6		2005.02.28
+
+FIXES:
+------
+o sil status()
+
+o _sil_read() used LOG_NOTICE rather than LOG_INFO in order to
+  avoid messages about valid metadata areas being displayed
+  during "dmraid -vay".
+
+o isw, sil filed metadata offset on "-r -D" in sectors rather than in bytes.
+
+o isw needed dev_sort() to sort RAID devices in sets correctly.
+
+o pdc metadata format handler name creation. Lead to
+  wrong RAID set grouping logic in some configurations. 
+
+o dos.c: partition table code fixes by Paul Moore
+
+o _free_dev_pointers(): fixed potential OOB error
+
+o hpt37x_check: deal with raid_disks = 1 in mirror sets
+
+o pdc_check: status & 0x80 doesn't always show a failed device;
+  removed that check for now. Status definitions needed.
+
+o sil addition of RAID sets to global list of sets
+
+o sil spare device memory leak
+
+o group_set(): removal of RAID set in case of error
+
+o hpt37x: handle total_secs > device size
+
+o allow -p with -f
+
+o enhanced error message by checking target type against list of
+  registered target types
+
+
+FEATURES:
+---------
+
+o VIA metadata format handler
+
+o added RAID10 to lsi metadata format handler
+
+o "dmraid -rD": file device size into {devicename}_{formatname}.size
+
+o "dmraid -tay": pretty print multi-line tables ala "dmsetup table"
+
+o "dmraid -l": display supported RAID levels + manual update
+
+
+MISCELANIOUS:
+------------
+
+o more inline comments
+
+o libdmraid_init() now returns lib context
+
+o check_set() enhanced to do RAID set stack unrolling and
+  to check correct number of devices in sets; saves code in
+  metadata format handlers
+
+o introduced read_raid_dev() to further reduce metadata format handler code
+
+o optimized parse_table()
+
+o updated dmraid manual
+
+o devmapper.c: check target type registered before trying to load table record
+
+o misc.c: avoid find_percent().
+
+
+
+Changelog from dmraid 1.0.0-rc4 to 1.0.0-rc5f		2004.11.24
+
+FIXES:
+------
+o make suffix in hpt45x set names numeric
+
+o HPT37x metadata format handler RAID10 grouping logic
+
+o HPT37x/HPT45x avoid devision by zero bug
+  in case ->raid_disks is zero for spares
+
+o avoid devision by zero bug in case of stride = 0
+
+o SIL device names / checksums
+
+o calc_total_sectors() on unsymmetric mirrors
+
+o Partition name suffix to make GRUB happy
+
+o perform() could return an error without releasing a lock
+
+
+FEATURES:
+---------
+o added NVidia metadata format handler
+
+o quorate SIL metadata copies
+
+o sorting order of stacked subset enhanced
+  (RAID10; hpt37x, hpt45x, lsi, nvidia and sil)
+
+o started event methods implementation in metadata format handlers
+
+o output linefeed to .offset files for better readability (-r -D)
+
+o use /sys/block/*/removable to avoid acessing removable devices
+
+o display of spare devices with -r -c{0,2}
+
+o enhanced spare device handling
+
+o '-h' option doesn't need to stand alone any more
+
+o -s displays top level sets only. "-s -s" shows subsets as well.
+
+o -f allows partial qualification of format names now
+  (eg, "dmraid -f hpt -r" will search for hpt37x and hpt45x formats)
+
+
+MISCELANIOUS:
+------------
+o HPT37X shows subset name suffixes with -r
+
+o streamlined display.c
+
+o added lib_context* argument to alloc_disk_info() in order
+  to be able to display an error message on failure
+
+o factored basic RAID set allocation code out of
+  all metadata format handler into find_or_alloc_set()
+
+o factored RAID superset allocation code out of metadata format
+  handlers into join_superset()
+
+o streamlined endianess code using CVT* macros
+
+o streamlined free_set() code
+
+o check option enum valid
+
+o introduced various metadata extraction macros to streamline
+  related code (eg, RD(), RS())
+
+o optimized format handler pre-registration checks
+
+o avoid format handler type() method altogether by introducing
+  a RAID device type member
+
+o generalized list_add_sorted() which can be used to sort any
+  "struct list_head*" which voided list_add_dev_sorted()
+
+o find_set() modified to avoid global searches for stacked sets
+
+o converted get_scsi_serial to fallback using SG_IO,
+  SCSI_IOCTL_SEND_COMMAND and ATA identify
+
+o introduced p_fmt() for formated string pushs in order to
+  streamline activate.c; value return code of p_fmt()
+
+o moved some paths + filenames to lib_context
+
+o introduced RAID set flag for metadata format handlers 
+  which decide to maximize capacity in unsymetric RAID0 sets
+
+o factored out device information allocation of scan.c into metadata.c
+
+o introduced RAID device list to library context in order to remove
+  pointer from device info and be able to handle remaining RAID device
+  structures better on library cleanup
+
+o streamlined commands.c
+
+o changed column output delimiter to ':'
+
+o introduced various enums replacing integers
+
+
+Changelog from dmraid 1.0.0-rc3 to 1.0.0-rc4		2004.09.07
+
+FIXES:
+------
+o get_dm_serial fix for trailing blanks
+
+o infinite loop bug in makefile
+
+o unified RAID #defines
+
+o RAID disk erase size
+
+o avoided unnecessary read in isw_read()
+
+o segfault in build_set() on RAID set group failure
+
+o activation of partitions on Intel Software RAID
+
+o allow display if tables for active RAID sets (-t -ay)
+
+o discovering no RAID disks shouldn't return an error
+
+o free_set would have segfaulted on virgin RAID set structures
+
+o deep DOS partition chains (Paul Moore)
+
+o "dmraid -sa" displayed group RAID set with Intel Software RAID
+  when it shouldn't
+
+o return RAID super set pointer from hpt45x_group() and sil_group()
+  rather than sub set pointer
+
+
+FEATURES:
+---------
+
+o added offset output to all native metadata logs
+
+o started defining metadata format handler event method needed for
+  write updates to native metadata (eg, for mirror failure)
+
+o [de]activation of a single raid sets below a group one (isw)
+
+o support for multiple -c options (see "man dmraid"):
+  "dmraid -b -c{0,2}"
+  "dmraid -r -c{0,2}"
+  "dmraid -s -c{0,3}"
+
+
+
+Changelog from dmraid 1.0.0-rc2 to 1.0.0-rc3		2004.08.18
+
+FIXES:
+------
+o HPT37X mapping on first disk of set
+
+o dietlibc sscanf() use prevented activation
+
+o le*_to_cpu() for certain glibc environments (Luca Berra)
+
+o sysfs discovery (Luca Berra)
+
+o permissions to write on binary, which is needed
+  by newer strip versions (Luca Berra)
+
+o SCSI serial number string length bug
+
+o valgrinded memory leaks
+
+o updated design document
+
+o comments
+
+FEATURES:
+---------
+o added basic support for activation of LSI Logic MegaRAID/MegaIDE;
+  more reengineering of the metadata needed!
+
+o root check using certain options (eg, activation of RAID sets)
+
+o implemented locking abstraction
+
+o implemented writing device metadata offsets with "-r[D/E]"
+  for ease of manual restore
+
+o file based locking to avoid parallel tool runs competing
+  with each other for the same resources
+
+o streamlined library context
+
+o implemented access functions for library context
+
+o streamlined RAID set consistency checks
+
+o implemented log function and removed macros to shrink binary size further
+
+o removed superfluous disk geometry code
+
+o cleaned up metadata.c collapsing free_*() functions
+
+o slimmed down minimal binary (configure option DMRAID_MINI
+  for early boot environment)
+
+
+
+Changelog from dmraid 1.0.0-rc1 to 1.0.0-rc2		2004.07.15
+
+o Intel Software RAID discovery and activation support
+
+o allow more than one format handler name with --format
+
+o display "raid10" sets properly rather than just "mirror"
+
+o enhanced activate.c to handle partial activation of sets (eg, degraded RAID0)
+
+o enhanced command line option checks
+
+o implemented a library context for variables such as debug etc.
+
+o fixed memory leak in discover_partitions
+
+o fixed recursion in _find_set()
+
+o continued writing subsets in case we fail on one because of RAID1
+
+o format handler template update
+
+o fixed dietlibc build
+
+o fixed shared library configure
+
+o use default_list_set() instead of &raid_sets where possible
+
+o name change of list_head members to the more commonly used 'list'
+
+o renamed msdos partition format handler to dos
+
+o lots of inline comments corrected/updated
+
+o streamlined tools/*.[ch]
+
+o moved get.*level() and get_status to metadata.[ch] and changed level
+  name to type

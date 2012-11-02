@@ -1,0 +1,168 @@
+#
+# Copyright (C) 2004-2010  Heinz Mauelshagen, Red Hat GmbH. All rights reserved.
+#
+# See file LICENSE at the top of this source tree for license information.
+#
+
+SHELL = /bin/sh
+
+@SET_MAKE@
+
+CC = @CC@
+RANLIB = @RANLIB@
+SHELL = /bin/sh
+INSTALL = @INSTALL@
+MKDIR_P = @MKDIR_P@
+LN_S = @LN_S@
+LIBS = @LIBS@
+AWK = @AWK@
+SED = @SED@
+DEVMAPPEREVENT_CFLAGS = @DEVMAPPEREVENT_CFLAGS@
+DEVMAPPEREVENT_LIBS = @DEVMAPPEREVENT_LIBS@
+DEVMAPPER_CFLAGS = @DEVMAPPER_CFLAGS@
+DEVMAPPER_LIBS = @DEVMAPPER_LIBS@
+DL_LIBS = @DL_LIBS@
+DMRAID_LIB_DATE = @DMRAID_LIB_DATE@
+DMRAID_LIB_MAJOR = @DMRAID_LIB_MAJOR@
+DMRAID_LIB_MINOR = @DMRAID_LIB_MINOR@
+DMRAID_LIB_SUBMINOR = @DMRAID_LIB_SUBMINOR@
+DMRAID_LIB_SUFFIX = @DMRAID_LIB_SUFFIX@
+PTHREAD_LIBS = @PTHREAD_LIBS@
+
+CFLAGS += @CFLAGS@
+CLDFLAGS += @CLDFLAGS@
+LDFLAGS += @LDFLAGS@
+LD_DEPS += @LD_DEPS@
+SOFLAG += @SOFLAG@
+
+# Setup directory variables
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+bindir = @bindir@
+datadir = @datarootdir@
+datarootdir = @datarootdir@
+infodir = @infodir@
+mandir = @mandir@
+usrlibdir = @usrlibdir@
+ifeq ("@KLIBC@", "no")
+  libdir = @libdir@
+  sbindir = @sbindir@
+  includedir = @includedir@
+else
+  libdir = @KLIBC_LIB_DIR@
+  sbindir = @KLIBC_SBIN_DIR@
+  includedir = @KLIBC_INCLUDE_DIR@
+endif
+
+vpath %.c $(srcdir)
+
+# setup misc variables
+INSTALL_PROGRAM = $(INSTALL) $(STRIP)
+INSTALL_DIR = $(INSTALL) -d
+INSTALL_DATA = $(INSTALL) -m 644 -p
+DISTCLEAN_TARGETS += Makefile
+
+# The number of jobs to run, if blank, defaults to the make standard
+ifndef MAKEFLAGS
+MAKEFLAGS = @JOBS@
+endif
+
+SUFFIXES=.c .d .o .so .a
+
+CFLAGS+=-fPIC -Wall -Wundef -Wcast-align -Wwrite-strings -Winline
+
+ifeq ("@KLIBC@", "yes")
+  # These ones make klibc compiles very loud
+  CFLAGS+=-Wshadow -Wmissing-prototypes -Wmissing-declarations -Wnested-externs
+endif
+
+# Don't allow for linking against DSO with static binary.
+ifeq ("@STATIC_LINK@", "no")
+	CFLAGS+=-DDMRAID_AUTOREGISTER
+endif
+
+ifeq ("@DEBUG@", "yes")
+  CFLAGS+=-g -fno-omit-frame-pointer
+else
+  ifeq ("@KLIBC@", "no")
+    CFLAGS+=-O2
+  else
+    CFLAGS+=-Os
+  endif
+endif
+
+INCLUDES += -I. -I$(top_srcdir)/include -I$(top_srcdir)/lib
+INCLUDES += -include $(top_builddir)/include/config.h
+STRIP=
+
+DEPS = Makefile $(top_srcdir)/make.tmpl \
+	$(top_srcdir)/tools/VERSION $(top_builddir)/include/config.h
+
+OBJECTS=$(SOURCES:%.c=%.o)
+OBJECTS2=$(SOURCES2:%.c=%.o)
+
+SUBDIRS.install := $(SUBDIRS:=.install)
+SUBDIRS.remove := $(SUBDIRS:=.remove)
+SUBDIRS.clean := $(SUBDIRS:=.clean)
+SUBDIRS.distclean := $(SUBDIRS:=.distclean)
+
+.PHONY: all install distclean clean cleandir
+.PHONY: $(SUBDIRS) $(SUBDIRS.install) $(SUBDIRS.clean) $(SUBDIRS.distclean)
+.PHONY: $(SUBDIRS.remove)
+
+all: $(SUBDIRS) $(TARGETS)
+
+install: all $(SUBDIRS.install)
+
+remove: $(SUBDIRS.remove)
+
+$(SUBDIRS):
+	$(MAKE) -C $@
+
+$(SUBDIRS.install): $(SUBDIRS)
+	$(MAKE) -C $(@:.install=) install
+
+$(SUBDIRS.remove): $(SUBDIRS)
+	$(MAKE) -C $(@:.remove=) remove
+
+$(SUBDIRS.clean):
+	-$(MAKE) -C $(@:.clean=) clean
+
+$(SUBDIRS.distclean):
+	-$(MAKE) -C $(@:.distclean=) distclean
+
+$(TARGETS): $(OBJECTS)
+
+%.o: %.c
+	$(CC) -o $@ -c $(INCLUDES) $(CFLAGS) $<
+
+%.d: %.c
+	$(MKDIR_P) $(dir $@); \
+	set -e; \
+	FILE=`echo $@ | $(SED) 's/\\//\\\\\\//g;s/\\.d//g'`; \
+	DEPS=`echo $(DEPS) | $(SED) -e 's/\\//\\\\\\//g'`; \
+	$(CC) -MM $(INCLUDES) $(DEFS) $(CFLAGS) -o $@ $<; \
+	$(SED) -i "s/\(.*\)\.o[ :]*/$$FILE.o $$FILE.d $$FILE.pot: $$DEPS /g" $@; \
+	[ -s $@ ] || $(RM) $@
+
+$(LIB_STATIC): $(OBJECTS)
+	$(RM) $@
+	$(AR) r $@ $(OBJECTS)
+	$(RANLIB) $@
+
+cleandir:
+	$(RM) $(OBJECTS) $(OBJECTS2) $(SOURCES:%.c=%.d) $(SOURCES2:%.c=%.d) $(TARGETS)
+
+clean: $(SUBDIRS.clean) cleandir
+
+distclean: $(SUBDIRS.distclean) cleandir
+	$(RM) -r $(DISTCLEAN_TARGETS)
+
+ifeq (,$(findstring $(MAKECMDGOALS), clean distclean))
+    ifdef SOURCES
+       -include $(SOURCES:.c=.d)
+    endif
+    ifdef SOURCES2
+       -include $(SOURCES2:.c=.d)
+    endif
+endif

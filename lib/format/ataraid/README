@@ -1,0 +1,20 @@
+
+This directory contains metadata format handlers for various ATARAID cards.
+
+Some useful metadata offsets/lengths (in 512 byte sector sizes):
+----------------------------------------------------------------
+
+Highpoint 45x *doesn't* zero the one on-disk metadata at -11,
+length 1 on drive removal.
+
+Intel Software RAID has metadata at -2 (conditionally -n), length in
+metadata structure member mpbSize.
+
+LSI Logic MegaRAID has metadata at -1, length 1.
+
+NVidea NForce has metadata at -2, length 1.
+
+Silicon Image Medley zeroes all 4 on-disk metadata areas
+(at -1, -512, -1024, -1536; length 4) on drive removal.
+
+VIA has metadata at -1, length 1.

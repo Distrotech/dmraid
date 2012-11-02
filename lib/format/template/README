@@ -1,0 +1,13 @@
+This directory contains a dmraid library format handler template.
+
+See template.h for a basic header defining the ondisk metadata structures
+and template.c showing the basic code structure of a format handler.
+Watch the CODEME remarks for coding areas to cover.
+You probably want to look at lib/format/ataraid/*.[ch] as well ;)
+
+Put your format handler .h and .c files into an appropriate (new)
+subdirectory (eg, another ATARAID format handler goes into lib/format/ataraid),
+add your register function to lib/format/register.h, add your header file
+to lib/format/ondisk.h and add the .c file to SOURCES in lib/Makefile.in
+(don't forget to run configure before make).
+

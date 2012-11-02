@@ -1,0 +1,314 @@
+#
+# Copyright (C) 2004-2010  Heinz Mauelshagen, Red Hat GmbH. All rights reserved.
+#
+# See file LICENSE at the top of this source tree for license information.
+#
+
+# configure.in for dmraid
+
+dnl Process this file with autoconf to produce a configure script.
+AC_PREREQ(2.57)
+AC_INIT(dmraid)
+AC_CONFIG_SRCDIR(lib/device/dev-io.h)
+
+dnl setup the directory where autoconf has auxilary files
+AC_CONFIG_AUX_DIR(autoconf)
+AC_CONFIG_HEADERS([include/config.h:include/config.h.in])
+
+dnl Get system type
+AC_CANONICAL_HOST
+AC_CANONICAL_TARGET
+
+dnl Checks for programs.
+AC_PROG_SED
+AC_PROG_AWK
+AC_PROG_INSTALL
+AC_PROG_LN_S
+AC_PROG_MAKE_SET
+AC_PROG_MKDIR_P
+AC_PROG_RANLIB
+
+dnl Enables linking to klibc
+dnl We need to do this before header checks, as we need to set CC
+AC_CHECK_KLIBC
+
+dnl Checks for CC
+dnl This should be done after klibc check, as CC is changed
+AC_PROG_CC
+AC_LANG(C)
+
+AC_GNU_SOURCE
+AC_SYS_LARGEFILE
+dnl AC_DEFINE(_LARGEFILE64_SOURCE, 1, [Define to 1 if you want compile with large file.])
+
+dnl Checks for header files.
+AC_HEADER_DIRENT
+AC_HEADER_STDC
+AC_HEADER_TIME
+AC_CHECK_HEADERS([fcntl.h limits.h mntent.h paths.h sys/file.h sys/ioctl.h])
+AC_CHECK_HEADERS([netinet/in.h syslog.h unistd.h])
+
+if test "$KLIBC" = yes; then
+	AC_CHECK_HEADERS(malloc.h)
+fi
+
+dnl Checks for typedefs, structures, and compiler characteristics.
+AC_C_CONST
+AC_C_INLINE
+AC_TYPE_INT16_T
+AC_TYPE_INT32_T
+AC_TYPE_INT64_T
+AC_TYPE_INT8_T
+AC_TYPE_MODE_T
+AC_TYPE_OFF_T
+AC_TYPE_PID_T
+AC_TYPE_SIZE_T
+AC_TYPE_UINT16_T
+AC_TYPE_UINT32_T
+AC_TYPE_UINT64_T
+AC_TYPE_UINT8_T
+
+dnl FIXME - HAVE_STRUCT_STAT_ST_RDEV
+AC_STRUCT_ST_RDEV
+
+dnl Set system type flags
+dnl We do not want this with klibc
+if test "$KLIBC" != yes; then
+	case "$host_os" in
+		linux*)
+			CFLAGS=-O2
+			CLDFLAGS='-Wl,--version-script,$(top_srcdir)/lib/.export.sym'
+			LD_DEPS='$(top_srcdir)/lib/.export.sym'
+			SOFLAG="-shared" ;;
+	esac
+fi
+
+dnl -- prefix is /usr/local by default, the exec_prefix default is setup later
+dnl AC_PREFIX_DEFAULT(/usr/share)
+
+AC_ARG_WITH(staticdir,
+  AC_HELP_STRING([--with-staticdir=DIR], [Static binary in DIR [[EPREFIX/sbin]]]),
+  [staticdir=$withval], [staticdir='${exec_prefix}/sbin'])
+
+AC_ARG_WITH(usrlibdir,
+  AC_HELP_STRING([--with-usrlibdir=DIR], [User library in DIR [[PREFIX/lib]]]),
+  [usrlibdir=$withval], [usrlibdir='${prefix}/lib'])
+
+dnl Enable Debugging
+AC_ARG_ENABLE(debug,
+  AC_HELP_STRING([--enable-debug], [Enable debugging]),
+  [DEBUG=$enableval], [DEBUG=no])
+AC_MSG_CHECKING([whether to enable debugging])
+AC_MSG_RESULT([$DEBUG])
+
+dnl Enable malloc debugging
+AC_ARG_ENABLE(debug_malloc,
+  AC_HELP_STRING([--enable-debug_malloc], [Enable malloc debugging]),
+  [DEBUG_MALLOC=$enableval], [DEBUG_MALLOC=no])
+AC_MSG_CHECKING([whether to enable malloc debugging])
+AC_MSG_RESULT([$DEBUG_MALLOC])
+
+dnl Enables linking to dietlibc
+AC_ARG_ENABLE(dietlibc,
+  AC_HELP_STRING([--enable-dietlibc], [Use this to link the tools to dietlibc]),
+  [DIETLIBC=$enableval], [DIETLIBC=no])
+
+if test x$DIETLIBC = xyes; then
+	if test x$KLIBC = xyes; then
+		AC_MSG_ERROR([You cannot enable both dietlibc and klibc!])
+	fi
+	CC="diet gcc"
+	FLAVOUR="dietlibc "
+fi
+
+AC_ARG_ENABLE(jobs,
+  AC_HELP_STRING([--enable-jobs=NUM], [Number of make jobs to run simultaneously]),
+  [JOBS=-j$enableval], [JOBS=-j1])
+
+dnl Enables mini binary
+AC_ARG_ENABLE(mini,
+  AC_HELP_STRING([--enable-mini],
+    [Use this to create a minimal binary suitable for early boot environments]),
+  [DMRAID_MINI=$enableval], [DMRAID_MINI=no])
+
+dnl Enables LED support
+AC_ARG_ENABLE(led,
+  AC_HELP_STRING([--enable-led], [Use this to enable LED support]),
+  [DMRAID_LED=$enableval], [DMRAID_LED=no])
+
+dnl Enables Intel LED support
+AC_ARG_ENABLE(intel_led,
+  AC_HELP_STRING([--enable-intel_led], [Use this to enable Intel LED support]),
+  [DMRAID_INTEL_LED=$enableval], [DMRAID_INTEL_LED=no])
+
+dnl Disable native metadata logging
+AC_ARG_ENABLE(native_log,
+  AC_HELP_STRING([--disable-native_log], [Disable native metadata logging [[enabled]]]),
+  [DMRAID_NATIVE_LOG=$enableval], [DMRAID_NATIVE_LOG=yes])
+AC_MSG_CHECKING([whether to disable native metadata logging])
+AC_MSG_RESULT([$DMRAID_NATIVE_LOG])
+
+dnl Enables staticly linked tools
+AC_ARG_ENABLE(static_link,
+  AC_HELP_STRING([--enable-static_link],
+    [Use this to link the tools to the dmraid and devmapper libraries statically.
+    Default is dynamic linking]),
+  [STATIC_LINK=$enableval], [STATIC_LINK=no])
+
+dnl Enables shared libdmraid
+AC_ARG_ENABLE(shared_lib,
+  AC_HELP_STRING([--enable-shared_lib], [Use this to generate shared
+    libdmraid and link the tools to it. Default is static libdmraid]),
+  [LIB_SO=$enableval], [LIB_SO=no])
+
+dnl Disable testing with mapped devices
+AC_ARG_ENABLE(testing,
+  AC_HELP_STRING([--disable-testing], [Disable testing with mapped devices]),
+  [DMRAID_TEST=$enableval], [DMRAID_TEST=yes])
+AC_MSG_CHECKING([whether to disable testing with mapped devices])
+AC_MSG_RESULT([$DMRAID_TEST])
+
+test "$LIB_SO" = yes && FLAVOUR="${FLAVOUR}shared "
+
+if test "$STATIC_LINK" = yes; then
+	if test "$LIB_SO" = yes; then
+		AC_MSG_ERROR([You cannot enable both shared_lib and static_link!])
+	fi
+	FLAVOUR="${FLAVOUR}static "
+fi
+
+if test "$DMRAID_MINI" = yes; then
+	AC_DEFINE(DMRAID_MINI, 1, [Define to 1 if you to create a minimal binary.])
+	FLAVOUR="${FLAVOUR}mini "
+else
+	if test "$DMRAID_NATIVE_LOG" = no; then
+		FLAVOUR="${FLAVOUR}no_native_log "
+	else
+		AC_DEFINE(DMRAID_NATIVE_LOG, 1,
+			  [Define to 1 if you want native metadata logging.])
+	fi
+fi
+
+if test "$DMRAID_INTEL_LED" = yes; then
+	AC_DEFINE(DMRAID_INTEL_LED, 1, [Define to 1 if you want Intel LED support.])
+	DMRAID_LED=yes
+fi
+
+if test "$DMRAID_LED" = yes; then
+	AC_DEFINE(DMRAID_LED, 1, [Define to 1 if you want LED support.])
+fi
+
+if test "$DMRAID_TEST" = yes; then
+	AC_DEFINE(DMRAID_TEST, 1, [Define to 1 if you want to test mapped devices.])
+fi
+
+if test "$DEBUG" = yes; then
+	AC_DEFINE(DEBUG, 1, [Define to 1 if you want debug.])
+	FLAVOUR="${FLAVOUR}debug "
+fi
+
+if test "$DEBUG_MALLOC" = yes; then
+	AC_DEFINE(DEBUG_MALLOC, 1, [Define to 1 if you want to debug malloc.])
+	FLAVOUR="${FLAVOUR}debug_malloc "
+fi
+
+dnl Mess with default exec_prefix
+test "$exec_prefix" = NONE -a "$prefix" = NONE && exec_prefix=""
+
+dnl Checks for library functions.
+AC_PROG_GCC_TRADITIONAL
+AC_TYPE_SIGNAL
+AC_FUNC_VPRINTF
+AC_FUNC_GETMNTENT
+AC_FUNC_LSTAT_FOLLOWS_SLASHED_SYMLINK
+AC_FUNC_MALLOC
+AC_FUNC_REALLOC
+AC_FUNC_STRTOD
+AC_CHECK_FUNCS([getmntent memmove memset mkdir rmdir uname])
+AC_CHECK_FUNCS([strchr strerror strpbrk strrchr strstr])
+
+dnl Klibc do not currently support getopt_long, but the test passes anyhow as
+dnl it calls gcc -E without considering CFLAGS ...
+if test "$KLIBC" != yes; then
+	dnl Check for getopt  (FIXME)
+	AC_CHECK_HEADERS(getopt.h, AC_DEFINE(HAVE_GETOPTLONG, 1, [Define to 1 for longopt.]))
+fi
+
+AC_CHECK_LIB(dl, dlopen,
+	[DL_LIBS="-ldl"],
+	[AC_MSG_ERROR([dl library is missing])])
+
+AC_CHECK_LIB(pthread, pthread_mutex_lock,
+	[PTHREAD_LIBS="-lpthread"],
+	[AC_MSG_ERROR([pthread library is missing])])
+
+dnl FIXME static linking would need some extension here
+dnl best would be to use pkg-config in Makefiles 
+AC_ARG_WITH(devmapper-prefix,
+	AC_HELP_STRING([--with-devmapper-prefix=PFX],
+		[Where is devmapper library installed]),
+	[DEVMAPPER_LIBS="-L$withval/lib"
+	 DEVMAPPER_CFLAGS="-I$withval/include"],
+	[DEVMAPPER_LIBS=
+	 DEVMAPPER_CFLAGS=])
+save_LDFLAGS=$LDFLAGS
+save_CPPFLAGS=$CPPFLAGS
+LDFLAGS="$LDFLAGS $DEVMAPPER_LIBS"
+CPPFLAGS="$CPPFLAGS $DEVMAPPER_CFLAGS"
+AC_CHECK_LIB(devmapper-event, dm_event_handler_create,
+	[DEVMAPPEREVENT_LIBS="$DEVMAPPER_LIBS -ldevmapper-event"],
+	[AC_MSG_ERROR([device-mapper-event library is either missing or is too old and badly linked])])
+AC_CHECK_LIB(devmapper, dm_task_set_name,
+	[DEVMAPPER_LIBS="$DEVMAPPER_LIBS -ldevmapper"],
+	[AC_MSG_ERROR([device-mapper library is missing])])
+AC_CHECK_HEADERS(libdevmapper.h libdevmapper-event.h,,
+	[AC_MSG_ERROR([Missing headers device-mapper headers])])
+CPPFLAGS=$save_CPPFLAGS
+LDFLAGS=$save_LDFLAGS
+
+VERSION=$srcdir/tools/VERSION
+DMRAID_LIB_MAJOR=$(cut -d. -f1 $VERSION)
+DMRAID_LIB_MINOR=$(cut -d. -f2 $VERSION)
+DMRAID_LIB_SUBMINOR=$(cut -d. -f3 $VERSION)
+DMRAID_LIB_SUFFIX=$(cut -d. -f4 $VERSION | cut -d' ' -f1)
+DMRAID_LIB_DATE=$(cut -d' ' -f2 $VERSION)
+
+AC_SUBST(CC)
+AC_SUBST(CFLAGS)
+AC_SUBST(CLDFLAGS)
+AC_SUBST(DEBUG)
+AC_SUBST(DEBUG_MALLOC)
+AC_SUBST(DEVMAPPEREVENT_CFLAGS)
+AC_SUBST(DEVMAPPEREVENT_LIBS)
+AC_SUBST(DEVMAPPER_CFLAGS)
+AC_SUBST(DEVMAPPER_LIBS)
+AC_SUBST(DIETLIBC)
+AC_SUBST(DL_LIBS)
+AC_SUBST(DMRAID_LIB_DATE)
+AC_SUBST(DMRAID_LIB_MAJOR)
+AC_SUBST(DMRAID_LIB_MINOR)
+AC_SUBST(DMRAID_LIB_SUBMINOR)
+AC_SUBST(DMRAID_LIB_SUFFIX)
+AC_SUBST(FLAVOUR)
+AC_SUBST(JOBS)
+AC_SUBST(LD_DEPS)
+AC_SUBST(LIBS)
+AC_SUBST(LIB_SO)
+AC_SUBST(PTHREAD_LIBS)
+AC_SUBST(SOFLAG)
+AC_SUBST(STATIC_LINK)
+AC_SUBST(usrlibdir)
+AC_SUBST(staticdir)
+
+dnl First and last lines should not contain files to generate in order to
+dnl keep utility scripts running properly
+AC_OUTPUT(
+include/Makefile
+lib/Makefile
+lib/version.h
+man/Makefile
+tools/Makefile
+tools/version.h
+Makefile
+make.tmpl
+)

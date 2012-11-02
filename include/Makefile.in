@@ -1,0 +1,32 @@
+#
+# Copyright (C) 2005-2010  Heinz Mauelshagen, Red Hat GmbH. All rights reserved.
+#
+# See file LICENSE at the top of this source tree for license information.
+#
+
+srcdir = @srcdir@
+top_srcdir = @top_srcdir@
+top_builddir = @top_builddir@
+
+HEADERS=$(wildcard $(top_srcdir)/include/dmraid/*.h)
+DISTCLEAN_TARGETS += config.h
+
+all:
+
+include $(top_builddir)/make.tmpl
+
+.PHONY: install_dmraid_headers remove_dmraid_headers
+
+install_dmraid_headers: $(HEADERS)
+	$(INSTALL_DIR) $(DESTDIR)$(includedir)/dmraid
+	$(INSTALL_DATA) $(HEADERS) $(DESTDIR)$(includedir)/dmraid/
+
+install: install_dmraid_headers
+
+remove_dmraid_headers:
+	@echo "Removing $(DESTDIR)$(includedir)/dmraid"
+	$(RM) -r $(DESTDIR)$(includedir)/dmraid
+
+remove: remove_dmraid_headers
+
+clean:

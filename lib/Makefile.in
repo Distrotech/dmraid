@@ -1,0 +1,115 @@
+#
+# Copyright (C) 2004-2010  Heinz Mauelshagen, Red Hat GmbH. All rights reserved.
+#
+# See file LICENSE at the top of this source tree for license information.
+#
+
+srcdir = @srcdir@
+top_srcdir = @top_srcdir@
+top_builddir = @top_builddir@
+
+SOURCES  = \
+	activate/activate.c \
+	activate/devmapper.c \
+	device/ata.c \
+	device/partition.c \
+	device/scan.c \
+	device/scsi.c \
+	display/display.c \
+	format/format.c \
+	locking/locking.c \
+	log/log.c \
+	metadata/log_ops.c \
+	metadata/metadata.c \
+	metadata/reconfig.c \
+	misc/file.c \
+	misc/init.c \
+	misc/lib_context.c \
+	misc/misc.c \
+	misc/workaround.c \
+	mm/dbg_malloc.c \
+	format/ataraid/asr.c \
+	format/ataraid/hpt37x.c \
+	format/ataraid/hpt45x.c \
+	format/ataraid/isw.c \
+	format/ataraid/jm.c \
+	format/ataraid/lsi.c \
+	format/ataraid/nv.c \
+	format/ataraid/pdc.c \
+	format/ataraid/sil.c \
+	format/ataraid/via.c \
+	format/ddf/ddf1.c \
+	format/ddf/ddf1_lib.c \
+	format/ddf/ddf1_crc.c \
+	format/ddf/ddf1_cvt.c \
+	format/ddf/ddf1_dump.c \
+	format/partition/dos.c
+
+ifeq ("@STATIC_LINK@", "no")
+# Dynamic linker library
+	SOURCES += register/dmreg.c
+endif
+
+SOURCES2 = events/$(LIB_EVENTS_NAME).c
+DISTCLEAN_TARGETS += version.h
+
+LIB_STATIC = libdmraid.a
+LIB_EVENTS_NAME = libdmraid-events-isw
+LIB_SHARED = libdmraid.so
+LIB_EVENTS_SHARED=$(LIB_EVENTS_NAME).so
+USRLIB_RELPATH = $(shell echo $(abspath $(usrlibdir) $(libdir)) | \
+  $(AWK) -f $(top_srcdir)/tools/relpath.awk)
+
+TARGETS = $(LIB_STATIC)
+
+ifeq ("@KLIBC@", "no")
+	ifeq ("@STATIC_LINK@", "no")
+		TARGETS += $(LIB_SHARED) $(LIB_EVENTS_SHARED)
+	endif
+endif
+
+include $(top_builddir)/make.tmpl
+
+INCLUDES += $(DEVMAPPEREVENT_CFLAGS)
+
+DMRAID_LIB_VERSION = $(DMRAID_LIB_MAJOR).$(DMRAID_LIB_MINOR).$(DMRAID_LIB_SUBMINOR)
+$(LIB_SHARED): $(OBJECTS) $(LD_DEPS)
+	$(CC) -o $@ $(CFLAGS) $(LDFLAGS) $(OBJECTS) \
+		-shared -Wl,--discard-all -Wl,--no-undefined $(CLDFLAGS) \
+		-Wl,-soname,$(notdir $@).$(DMRAID_LIB_MAJOR) \
+		$(DEVMAPPEREVENT_LIBS) $(DEVMAPPER_LIBS) $(DL_LIBS) $(LIBS)
+
+$(LIB_EVENTS_SHARED): $(OBJECTS2)
+	$(CC) -o $@ $(CFLAGS) $(LDFLAGS) $(OBJECTS2) \
+		-shared -Wl,--discard-all -Wl,--no-undefined -Wl,-soname,$(notdir $@) \
+		$(LIB_SHARED) $(DEVMAPPEREVENT_LIBS) $(DEVMAPPER_LIBS) $(PTHREAD_LIBS) $(LIBS)
+
+.PHONY: $(addprefix install_,$(TARGETS)) $(addprefix remove_,$(TARGETS))
+
+install_$(LIB_EVENTS_SHARED): $(LIB_EVENTS_SHARED)
+	$(INSTALL_PROGRAM) -D $< $(DESTDIR)$(libdir)/device-mapper/$(<F)
+	$(LN_S) -f device-mapper/$(<F) $(DESTDIR)$(libdir)/$(<F)
+
+remove_$(LIB_EVENTS_SHARED):
+	$(RM) $(DESTDIR)$(libdir)/device-mapper/$(notdir $(LIB_EVENTS_SHARED))
+	$(RM) $(DESTDIR)$(libdir)/$(notdir $(LIB_EVENTS_SHARED))
+
+install_$(LIB_SHARED): $(LIB_SHARED)
+	$(INSTALL_PROGRAM) -D $< $(DESTDIR)$(libdir)/$(<F).$(DMRAID_LIB_VERSION)
+	$(INSTALL_DIR) $(DESTDIR)$(usrlibdir)
+	$(LN_S) -f $(<F).$(DMRAID_LIB_VERSION) $(DESTDIR)$(libdir)/$(<F).$(DMRAID_LIB_MAJOR)
+	$(LN_S) -f $(USRLIB_RELPATH)$(<F).$(DMRAID_LIB_VERSION) $(DESTDIR)$(usrlibdir)/$(<F)
+
+remove_$(LIB_SHARED):
+	$(RM) $(DESTDIR)$(usrlibdir)/$(notdir $(LIB_SHARED))
+	$(RM) $(DESTDIR)$(libdir)/$(notdir $(LIB_SHARED)).$(DMRAID_LIB_MAJOR)
+	$(RM) $(DESTDIR)$(libdir)/$(notdir $(LIB_SHARED)).$(DMRAID_LIB_VERSION)
+
+install_$(LIB_STATIC): $(LIB_STATIC)
+	$(INSTALL_DATA) -D $< $(DESTDIR)$(usrlibdir)/$(LIB_STATIC)
+
+remove_$(LIB_STATIC):
+	$(RM) $(DESTDIR)$(usrlibdir)/$(notdir $(LIB_STATIC))
+
+install: $(addprefix install_,$(TARGETS))
+remove: $(addprefix remove_,$(TARGETS))

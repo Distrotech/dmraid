@@ -1,0 +1,7 @@
+
+This directory is the top for class-subdrectories containing dmraid
+metadata format handlers. Itself holds the format handler core with
+the handler registry.
+
+See template/README and template/template.[ch] for a metadata format
+handler template which shall (hopefully) help to implement your own.

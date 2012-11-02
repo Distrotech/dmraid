@@ -1,0 +1,26 @@
+#
+# Copyright (C) 2004-2010  Heinz Mauelshagen, Red Hat GmbH. All rights reserved.
+#
+# See file LICENSE at the top of this source tree for license information.
+#
+
+srcdir = @srcdir@
+top_srcdir = @top_srcdir@
+top_builddir = @top_builddir@
+vpath %.8 $(srcdir)
+
+MAN8=dmraid.8 dmevent_tool.8
+MAN8DIR=${mandir}/man8
+
+include $(top_builddir)/make.tmpl
+
+.PHONY: install_dmraid_man8
+
+install_dmraid_man8: $(MAN8)
+	$(INSTALL_DIR) $(DESTDIR)$(MAN8DIR)
+	$(INSTALL_DATA) $? $(DESTDIR)$(MAN8DIR)
+
+install: install_dmraid_man8
+
+remove:
+	$(RM) $(addprefix $(DESTDIR)$(MAN8DIR)/,$(MAN8))

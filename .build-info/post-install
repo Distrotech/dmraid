@@ -1,0 +1,11 @@
+#!/bin/bash
+
+link_libs() {
+  rm ${3}/usr/${C_LIBDIRS}/${1}
+  ln -s ${1}.${2} ${3}/usr/${C_LIBDIRS}/${1}
+}
+
+for tofix in "libdmraid.so 1.0.0";do
+  link_libs ${tofix} ${3}
+done
+
